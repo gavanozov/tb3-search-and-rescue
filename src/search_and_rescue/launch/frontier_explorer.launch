@@ -1,0 +1,4 @@
+<launch>
+    <node pkg="search_and_rescue" name="object_detection" type="object_detection.py">
+    </node>
+</launch>

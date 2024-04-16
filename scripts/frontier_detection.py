@@ -17,15 +17,10 @@ class FrontierDetection:
 
     def __init__(self):
         rospy.init_node('occupancy_grid_listener')
-        self.robot_x = 0
-        self.robot_y = 0
-        self.robot_orientation = set()
-        self.robot_acceleration = 0
-        self.robot_rotation = 0
+        self.initial_position = None
         self.frontiers_publisher = rospy.Publisher('/frontiers', GridCells, queue_size=0)
         self.closest_frontier_publisher = rospy.Publisher('/closest_frontier', Point, queue_size=0)
         self.pose_subscriber = rospy.Subscriber('/odom', Odometry, self.get_pose)
-        self.acceleration_subscriber = rospy.Subscriber('/cmd_vel', Twist, self.get_acceleration)
         self.map_subscriber = rospy.Subscriber('/map', OccupancyGrid, self.occupancy_grid_callback)
         
 
@@ -34,9 +29,8 @@ class FrontierDetection:
         self.robot_y = msg.pose.pose.position.y
         self.robot_orientation = msg.pose.pose.orientation
 
-    def get_acceleration(self, msg):
-        self.robot_acceleration = msg.linear.x
-        self.robot_rotation = msg.angular.z
+        if self.initial_position == None:
+            self.initial_position = (self.robot_x, self.robot_y)
 
     def get_neighbours(self, cell):
 
@@ -125,6 +119,7 @@ class FrontierDetection:
         return closest_frontier
 
     def publish_closest_frontier(self, frontier, map):
+        
         frontier_median_msg = Point()
 
         frontier_median_msg.x = (frontier[0] + 0.5) * map.info.resolution + map.info.origin.position.x
@@ -132,8 +127,22 @@ class FrontierDetection:
         frontier_median_msg.z = 0.0
 
         self.closest_frontier_publisher.publish(frontier_median_msg)
+
+    def publish_end_goal(self, point):
+
+        end_goal_msg = Point()
+
+        end_goal_msg.x = point[0]
+        end_goal_msg.y = point[1]
+        end_goal_msg.z = 0.0
+
+        self.closest_frontier_publisher.publish(end_goal_msg)
+            
+
     
     def occupancy_grid_callback(self, msg):
+
+        print(self.initial_position)
         # Access the occupancy grid data here
         mol = set()
         mcl = set()
@@ -204,7 +213,10 @@ class FrontierDetection:
             #self.visualize_cell(frontier_medians, msg)
             self.publish_closest_frontier(self.pick_closest_frontier(robot_grid[1], robot_grid[0], frontier_medians), msg)
             print(self.pick_closest_frontier(robot_grid[1], robot_grid[0], frontier_medians))
-        print(self.robot_x, self.robot_y, self.robot_orientation)
+        else:
+            self.publish_end_goal((self.initial_position[0], self.initial_position[1]))
+            #self.publish_end_goal((-3, 1), msg)
+        #print(self.robot_x, self.robot_y, self.robot_orientation)
         #closest_frontier = self.pick_closest_frontier(robot_grid[0], robot_grid[1], frontier_medians)
 
 

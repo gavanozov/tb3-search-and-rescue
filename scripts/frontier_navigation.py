@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import rospy
 import actionlib
-import time
+import threading
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Point, PoseWithCovarianceStamped
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
@@ -16,7 +16,6 @@ class FrontierNavigation:
         self.closest_frontier_subscriber = rospy.Subscriber('/closest_frontier', Point, self.navigation_callback)
         self.move_base_client = actionlib.SimpleActionClient('move_base', MoveBaseAction)
         self.move_base_client.wait_for_server()
-        #self.timer = None
 
     def get_pose(self, msg):
         self.robot_x = msg.pose.pose.position.x
@@ -37,7 +36,7 @@ class FrontierNavigation:
         # Publish the message
         self.pose_publisher.publish(pose_msg)
 
-        rospy.loginfo("Robot pose set to: x={}, y={}, orientation={}".format(x, y, orientation))
+        #rospy.loginfo("Robot pose set to: x={}, y={}, orientation={}".format(x, y, orientation))
 
     def send_goal(self, cell):
 
@@ -61,13 +60,10 @@ class FrontierNavigation:
         #self.move_base_client.wait_for_result()
         return self.move_base_client.get_state() == actionlib.GoalStatus.SUCCEEDED
     
-    
     def navigation_callback(self, msg):
         
         self.set_robot_pose(self.robot_x, self.robot_y, self.robot_orientation)
         
-        print(msg)
-
         self.send_goal(msg)
 
 if __name__ == "__main__":

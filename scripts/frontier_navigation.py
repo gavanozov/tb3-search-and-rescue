@@ -5,7 +5,6 @@ import time
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Point, PoseWithCovarianceStamped
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
-from sound_play.libsoundplay import SoundClient
 
 
 class FrontierNavigation:
@@ -17,8 +16,7 @@ class FrontierNavigation:
         self.closest_frontier_subscriber = rospy.Subscriber('/closest_frontier', Point, self.navigation_callback)
         self.move_base_client = actionlib.SimpleActionClient('move_base', MoveBaseAction)
         self.move_base_client.wait_for_server()
-        self.sound_client = SoundClient()
-        self.timer = None
+        #self.timer = None
 
     def get_pose(self, msg):
         self.robot_x = msg.pose.pose.position.x
@@ -63,18 +61,6 @@ class FrontierNavigation:
         #self.move_base_client.wait_for_result()
         return self.move_base_client.get_state() == actionlib.GoalStatus.SUCCEEDED
     
-    def start_timer(self, data):
-        if not data:  # Assuming the message is empty when no frontiers
-            if not self.timer:
-                self.timer = time.time()
-        else:
-            self.timer = None  # Reset timer if frontiers are found
-
-    def sound_maker(self):
-        if self.timer and (time.time() - self.timer > 10):  # 10 second delay
-            self.sound_client.playWave('/../sounds/victory.wav')
-            rospy.loginfo("All frontiers explored, sound played.")
-            self.timer = None  # Reset timer
     
     def navigation_callback(self, msg):
         
@@ -83,11 +69,6 @@ class FrontierNavigation:
         print(msg)
 
         self.send_goal(msg)
-
-        self.start_timer(msg)
-
-        self.sound_maker
-        
 
 if __name__ == "__main__":
     FrontierNavigation()

@@ -190,7 +190,7 @@ Visualization Manager:
     - Class: rviz/Marker
       Name: Marker
       Marker Topic: /visualization_marker
-      Queue Size: 10
+      Queue Size: 50
       Enabled: true
   Enabled: true
   Global Options:

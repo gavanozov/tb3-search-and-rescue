@@ -187,7 +187,7 @@ class FrontierDetection:
                                 queue_f.put(adj_f)
                                 fol.add(adj_f)
                     fcl.add(current_frontier)
-                if len(new_frontier) > 20: 
+                if len(new_frontier) > 24: 
                     self.save_frontier(new_frontier, frontiers)
                     new_median = self.calculate_median(new_frontier) 
                     if new_median not in frontier_medians:

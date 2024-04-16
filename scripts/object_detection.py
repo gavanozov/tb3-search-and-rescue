@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 import rospy
 import cv2
 import numpy as np
@@ -9,17 +8,19 @@ from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
 from nav_msgs.msg import Odometry
 from visualization_msgs.msg import Marker
-from geometry_msgs.msg import Quaternion
 from tf.transformations import euler_from_quaternion
+from sound_play.libsoundplay import SoundClient
 
 class ObjectDetection:
 
     def __init__(self):
         rospy.init_node('object_detection')
+        self.object_number_target = int(input("How many objects is the robot looking for?\n"))
         self.camera_subscriber = rospy.Subscriber('/camera/rgb/image_raw', Image, self.image_callback)
         self.pose_subscriber = rospy.Subscriber('/odom', Odometry, self.get_pose)
         self.object_publisher = rospy.Publisher('/visualization_marker', Marker, queue_size=0)
         self.bridge = CvBridge()
+        self.sound_client = SoundClient()
         self.focal_length = 0.304
         self.pixel_size = 0.000575
         self.camera_fov = math.radians(62.2) # Default TurtleBot3 Camera FOV (Field of View)
@@ -41,7 +42,7 @@ class ObjectDetection:
     
     def is_close(self, point):
         for loc in self.object_locations:
-            if self.euclidean_distance(loc, point) <= 1:
+            if self.euclidean_distance(loc, point) <= 1.5:
                 return True
         return False
 
@@ -78,7 +79,7 @@ class ObjectDetection:
         marker.pose.orientation.y = 0.0
         marker.pose.orientation.z = 0.0
         marker.pose.orientation.w = 1.0
-        marker.scale.x = marker.scale.y = marker.scale.z = 0.3 # Adjust size as needed
+        marker.scale.x = marker.scale.y = marker.scale.z = 0.4 # Adjust size as needed
         marker.color.r = 1.0  # Red color
         marker.color.g = 0.0
         marker.color.b = 0.0
@@ -178,6 +179,10 @@ class ObjectDetection:
 
             cv2.imshow("bruh", numpy_concat)
 
+            if self.object_number == self.object_number_target:
+                print("All objects detected!!!")
+                self.sound_client.playWave('/home/ivang/catkin_ws/src/search_and_rescue/sounds/victory.wav')
+                self.object_number = 0
             
             #self.object_position(self.object_distance(w))
             #print(self.object_distance(w))

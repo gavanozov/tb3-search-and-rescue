@@ -11,7 +11,7 @@ class FrontierNavigation:
 
     def __init__(self):
         rospy.init_node('frontier_navigation')
-        self.pose_publisher = rospy.Publisher('/initialpose', PoseWithCovarianceStamped, queue_size=0)
+        self.pose_publisher = rospy.Publisher('/initialpose', PoseWithCovarianceStamped, queue_size=10)
         self.pose_subscriber = rospy.Subscriber('/odom', Odometry, self.get_pose)
         self.closest_frontier_subscriber = rospy.Subscriber('/closest_frontier', Point, self.navigation_callback)
         self.move_base_client = actionlib.SimpleActionClient('move_base', MoveBaseAction)

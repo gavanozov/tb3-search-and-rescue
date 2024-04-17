@@ -18,7 +18,7 @@ class ObjectDetection:
         self.object_number_target = int(input("How many objects is the robot looking for?\n"))
         self.camera_subscriber = rospy.Subscriber('/camera/rgb/image_raw', Image, self.image_callback)
         self.pose_subscriber = rospy.Subscriber('/odom', Odometry, self.get_pose)
-        self.object_publisher = rospy.Publisher('/visualization_marker', Marker, queue_size=0)
+        self.object_publisher = rospy.Publisher('/visualization_marker', Marker, queue_size=10)
         self.bridge = CvBridge()
         self.sound_client = SoundClient()
         self.focal_length = 0.304
@@ -146,7 +146,7 @@ class ObjectDetection:
                     # Check if the object has been visible for longer than the threshold
                     time_visible = current_time - self.object_timings[object_center]
                     if time_visible >= self.detection_threshold:
-                        rospy.loginfo(f"Object at {object_center} confirmed after {self.detection_threshold} seconds")
+                        #rospy.loginfo(f"Object at {object_center} confirmed after {self.detection_threshold} seconds")
                         # Calculate displacement from the center of the image
                         image_center_x = cv_image.shape[1] / 2
                         displacement_from_center = cx - image_center_x
@@ -162,8 +162,10 @@ class ObjectDetection:
                         if not self.is_close(object_position):
                             self.object_marker(object_position[0], object_position[1])
                             self.object_locations.append(object_position)
-                    else:
-                        rospy.loginfo(f"Object at {object_center} detected but not confirmed. Visible for {time_visible:.2f} seconds")
+                            print(f"Object detected at {object_position}")
+                            
+                    #else:
+                        #rospy.loginfo(f"Object at {object_center} detected but not confirmed. Visible for {time_visible:.2f} seconds")
 
 
                 #(object_x, object_y) = self.object_position(self.object_distance(w), angle_to_object)

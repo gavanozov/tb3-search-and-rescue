@@ -17,9 +17,11 @@ class FrontierDetection:
 
     def __init__(self):
         rospy.init_node('occupancy_grid_listener')
+        self.robot_x = 0
+        self.robot_y = 0
         self.initial_position = None
-        self.frontiers_publisher = rospy.Publisher('/frontiers', GridCells, queue_size=0)
-        self.closest_frontier_publisher = rospy.Publisher('/closest_frontier', Point, queue_size=0)
+        self.frontiers_publisher = rospy.Publisher('/frontiers', GridCells, queue_size=10)
+        self.closest_frontier_publisher = rospy.Publisher('/closest_frontier', Point, queue_size=10)
         self.pose_subscriber = rospy.Subscriber('/odom', Odometry, self.get_pose)
         self.map_subscriber = rospy.Subscriber('/map', OccupancyGrid, self.occupancy_grid_callback)
         
@@ -142,7 +144,6 @@ class FrontierDetection:
     
     def occupancy_grid_callback(self, msg):
 
-        print(self.initial_position)
         # Access the occupancy grid data here
         mol = set()
         mcl = set()
@@ -196,7 +197,7 @@ class FrontierDetection:
                                 queue_f.put(adj_f)
                                 fol.add(adj_f)
                     fcl.add(current_frontier)
-                if len(new_frontier) > 24: 
+                if len(new_frontier) > 22: 
                     self.save_frontier(new_frontier, frontiers)
                     new_median = self.calculate_median(new_frontier) 
                     if new_median not in frontier_medians:
@@ -212,8 +213,8 @@ class FrontierDetection:
         if frontier_medians:
             #self.visualize_cell(frontier_medians, msg)
             self.publish_closest_frontier(self.pick_closest_frontier(robot_grid[1], robot_grid[0], frontier_medians), msg)
-            print(self.pick_closest_frontier(robot_grid[1], robot_grid[0], frontier_medians))
-        else:
+            print(f"Closest frontier is at coordinates {self.pick_closest_frontier(robot_grid[1], robot_grid[0], frontier_medians)}")
+        elif self.initial_position != None:
             self.publish_end_goal((self.initial_position[0], self.initial_position[1]))
             #self.publish_end_goal((-3, 1), msg)
         #print(self.robot_x, self.robot_y, self.robot_orientation)

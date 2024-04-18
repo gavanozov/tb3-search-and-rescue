@@ -63,7 +63,7 @@ class FrontierNavigation:
     def navigation_callback(self, msg):
         
         self.set_robot_pose(self.robot_x, self.robot_y, self.robot_orientation)
-        
+
         self.send_goal(msg)
 
 if __name__ == "__main__":

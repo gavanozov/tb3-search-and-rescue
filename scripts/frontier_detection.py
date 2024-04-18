@@ -19,7 +19,9 @@ class FrontierDetection:
         rospy.init_node('occupancy_grid_listener')
         self.robot_x = 0
         self.robot_y = 0
+        self.timer = 0
         self.initial_position = None
+        self.previous_frontier_medians = []
         self.frontiers_publisher = rospy.Publisher('/frontiers', GridCells, queue_size=10)
         self.closest_frontier_publisher = rospy.Publisher('/closest_frontier', Point, queue_size=10)
         self.pose_subscriber = rospy.Subscriber('/odom', Odometry, self.get_pose)
@@ -150,8 +152,8 @@ class FrontierDetection:
         fol = set()
         fcl = set()
 
-        frontiers = list()
-        frontier_medians = list()
+        frontiers = []
+        frontier_medians = []
 
         # Your processing code here
         height = msg.info.height
@@ -183,7 +185,7 @@ class FrontierDetection:
                 continue
             if self.frontier_check(current_cell, msg, occupancy_grid):
                 queue_f = q.Queue()
-                new_frontier = list()
+                new_frontier = []
                 queue_f.put(current_cell)
                 fol.add(current_cell)
                 while not queue_f.empty():
@@ -214,11 +216,17 @@ class FrontierDetection:
             #self.visualize_cell(frontier_medians, msg)
             self.publish_closest_frontier(self.pick_closest_frontier(robot_grid[1], robot_grid[0], frontier_medians), msg)
             print(f"Closest frontier is at coordinates {self.pick_closest_frontier(robot_grid[1], robot_grid[0], frontier_medians)}")
-        elif self.initial_position != None:
+            self.timer = 0
+        else:
+            self.timer += 1
+        if self.initial_position != None and self.timer >= 2:
             self.publish_end_goal((self.initial_position[0], self.initial_position[1]))
+            self.timer = 0
+            print("Returning to starting location!")
             #self.publish_end_goal((-3, 1), msg)
         #print(self.robot_x, self.robot_y, self.robot_orientation)
         #closest_frontier = self.pick_closest_frontier(robot_grid[0], robot_grid[1], frontier_medians)
+        
 
 
 if __name__ == "__main__":

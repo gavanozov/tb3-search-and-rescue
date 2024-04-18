@@ -42,7 +42,7 @@ class ObjectDetection:
     
     def is_close(self, point):
         for loc in self.object_locations:
-            if self.euclidean_distance(loc, point) <= 1.5:
+            if self.euclidean_distance(loc, point) <= 2:
                 return True
         return False
 
@@ -128,7 +128,6 @@ class ObjectDetection:
 
             if detected_coke_cans:
                 # Assume the largest contour corresponds to the object of interest
-                largest_contour = None
                 largest_contour = max(detected_coke_cans, key=cv2.contourArea)
                 # Draw bounding box around each filtered contour
                 x, y, w, h = cv2.boundingRect(largest_contour)

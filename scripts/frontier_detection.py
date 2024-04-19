@@ -5,9 +5,9 @@ import numpy as np
 import math
 import queue as q
 from nav_msgs.msg import OccupancyGrid, Odometry, GridCells
-from geometry_msgs.msg import Point, Twist
+from geometry_msgs.msg import Point
 
-
+# Classify different cell types in occupancy grid for the map
 class CellType:
     UNKNOWN = -1
     FREE = 0
@@ -17,11 +17,12 @@ class FrontierDetection:
 
     def __init__(self):
         rospy.init_node('occupancy_grid_listener')
+        # Initialize the robot's location
         self.robot_x = 0
         self.robot_y = 0
         self.timer = 0
         self.initial_position = None
-        self.previous_frontier_medians = []
+        # Initialize required ROS publishers and subscribers
         self.frontiers_publisher = rospy.Publisher('/frontiers', GridCells, queue_size=10)
         self.closest_frontier_publisher = rospy.Publisher('/closest_frontier', Point, queue_size=10)
         self.pose_subscriber = rospy.Subscriber('/odom', Odometry, self.get_pose)
@@ -29,6 +30,7 @@ class FrontierDetection:
         
 
     def get_pose(self, msg):
+        # Get robot position on the map as well as current orientation by subscribing to the odometry topic (/odom)
         self.robot_x = msg.pose.pose.position.x
         self.robot_y = msg.pose.pose.position.y
         self.robot_orientation = msg.pose.pose.orientation
@@ -37,7 +39,7 @@ class FrontierDetection:
             self.initial_position = (self.robot_x, self.robot_y)
 
     def get_neighbours(self, cell):
-
+        # Get the neighbours of a cell in the occupancy grid
         neighbors_offsets = [
             (-1, -1), (-1, 0), (-1, 1),
             (0, -1),            (0, 1),
@@ -47,7 +49,7 @@ class FrontierDetection:
         return [(cell[0] + offset[0], cell[1] + offset[1]) for offset in neighbors_offsets]
 
     def open_space_check(self, cell, grid):
-
+        # Check whether cells around the input cell are occupied or not
         adjacent_points = self.get_neighbours(cell)
 
         for adj in adjacent_points:
@@ -55,7 +57,7 @@ class FrontierDetection:
                 return True
 
     def frontier_check(self, cell, map, grid):
-
+        # Check if input cell is a frontier (it's an unknown cell next to an unoccupied one)
         rows, cols = map.info.height, map.info.width
 
         neighbors_offsets = self.get_neighbours(cell)
@@ -64,36 +66,25 @@ class FrontierDetection:
             for neighbor_x, neighbor_y in neighbors_offsets:
 
                 if 0 <= neighbor_x < rows and 0 <= neighbor_y < cols:
-                    if grid[neighbor_y][neighbor_x] == CellType.FREE: # or grid[neighbor_y][neighbor_x] == CellType.OCCUPIED:
+                    if grid[neighbor_y][neighbor_x] == CellType.FREE:
                         return True
-    
-    def frontier_omit(self, frontier, grid):
-
-        limit = 0
-
-        for cell in frontier:
-            adjacent_points = self.get_neighbours(cell)
-            for adj in adjacent_points:
-                if grid[adj[1]][adj[0]] == CellType.OCCUPIED:
-                    limit += 1
-        return limit < 25
-
-
                     
     def visualize_frontiers(self, frontier_points, map):
+        # Publish detected frontiers to Rviz in order to visualize them
         grid_cells_msg = GridCells()
         grid_cells_msg.header.frame_id = map.header.frame_id
         grid_cells_msg.cell_width = map.info.resolution
         grid_cells_msg.cell_height = map.info.resolution
 
+        # Each cell needs to be visualized separately
         for frontier in frontier_points:
             for point in frontier:
                 grid_cells_msg.cells.append(Point(x= (point[0] + 0.5) * map.info.resolution + map.info.origin.position.x, y= (point[1] + 0.5) * map.info.resolution + map.info.origin.position.y, z=0.0))
 
         self.frontiers_publisher.publish(grid_cells_msg)
-        #rospy.loginfo("Frontiers published: {}".format(grid_cells_msg.cells))
 
     def visualize_cell(self, cell, map):
+        # Function for debugging and visualizing separated cells (Not used in main program)
         grid_cells_msg = GridCells()
         grid_cells_msg.header.frame_id = map.header.frame_id
         grid_cells_msg.cell_width = map.info.resolution
@@ -104,11 +95,8 @@ class FrontierDetection:
 
         self.frontiers_publisher.publish(grid_cells_msg)
 
-    def save_frontier(self, new_frontier, frontiers):
-        #if new_frontier not in frontiers:
-        frontiers.append(new_frontier)
-
     def calculate_median(self, frontier):
+        # Calculate the median (middle point) of the input frontier
         middle = int(len(frontier) / 2)
         if len(frontier) == 1:
             return frontier[0]
@@ -116,6 +104,7 @@ class FrontierDetection:
             return frontier[middle]
         
     def pick_closest_frontier(self, robot_x, robot_y, medians):
+        # Select the closest frontier to the robot when sending navigation messages
         closest_frontier = medians[0]
         for median in medians:
             if math.sqrt((median[1] - robot_x)**2 + (median[0] - robot_y)**2) < math.sqrt((closest_frontier[1] - robot_x)**2 + (closest_frontier[0] - robot_y)**2):
@@ -123,9 +112,8 @@ class FrontierDetection:
         return closest_frontier
 
     def publish_closest_frontier(self, frontier, map):
-        
-        frontier_median_msg = Point()
-
+        # Publish the closest to the robot frontier median in order for it to be processed by the navigation stack
+        frontier_median_msg = Point() # Create a Point object for the message to be published
         frontier_median_msg.x = (frontier[0] + 0.5) * map.info.resolution + map.info.origin.position.x
         frontier_median_msg.y = (frontier[1] + 0.5) * map.info.resolution + map.info.origin.position.y
         frontier_median_msg.z = 0.0
@@ -133,9 +121,8 @@ class FrontierDetection:
         self.closest_frontier_publisher.publish(frontier_median_msg)
 
     def publish_end_goal(self, point):
-
+        # Publish the end goal location which is the robot's starting location
         end_goal_msg = Point()
-
         end_goal_msg.x = point[0]
         end_goal_msg.y = point[1]
         end_goal_msg.z = 0.0
@@ -145,17 +132,18 @@ class FrontierDetection:
 
     
     def occupancy_grid_callback(self, msg):
-
-        # Access the occupancy grid data here
+        # Frontier detection algorithm starts here
+        # Create four sets, two for each of the BFSs (Breadth-First Search)
         mol = set()
         mcl = set()
         fol = set()
         fcl = set()
 
+        # Keep track of current frontiers and their medians
         frontiers = []
         frontier_medians = []
 
-        # Your processing code here
+        # Process map information to be used in the function
         height = msg.info.height
         width = msg.info.width
         resolution = msg.info.resolution
@@ -163,24 +151,19 @@ class FrontierDetection:
         # Reshape 1D array to 2D grid
         occupancy_grid = np.array(msg.data).reshape((height, width))
 
+        # Convert the robot's coordinates on the map into a coordinate on the occupancy grid
         robot_grid = (
             round(abs((self.robot_x - msg.info.origin.position.x) / resolution)),
             round(abs((self.robot_y - msg.info.origin.position.y) / resolution))
         )
 
+        # Here starts the frontier detection algorithm
         queue_m = q.Queue()
         queue_m.put(robot_grid)
         mol.add(robot_grid)
 
-        #cells = []
-
-        #print(self.robot_orientation)
-
         while not queue_m.empty():
-            #self.refresh_frontiers(self.frontiers, msg, occupancy_grid)
             current_cell = queue_m.get()
-            #cells.append(current_cell)
-            #self.visualize_cell(cells, msg)
             if current_cell in mcl:
                 continue
             if self.frontier_check(current_cell, msg, occupancy_grid):
@@ -200,7 +183,7 @@ class FrontierDetection:
                                 fol.add(adj_f)
                     fcl.add(current_frontier)
                 if len(new_frontier) > 22: 
-                    self.save_frontier(new_frontier, frontiers)
+                    frontiers.append(new_frontier)
                     new_median = self.calculate_median(new_frontier) 
                     if new_median not in frontier_medians:
                         frontier_medians.append(new_median)
@@ -213,7 +196,6 @@ class FrontierDetection:
             mcl.add(current_cell)
         self.visualize_frontiers(frontiers, msg)
         if frontier_medians:
-            #self.visualize_cell(frontier_medians, msg)
             self.publish_closest_frontier(self.pick_closest_frontier(robot_grid[1], robot_grid[0], frontier_medians), msg)
             print(f"Closest frontier is at coordinates {self.pick_closest_frontier(robot_grid[1], robot_grid[0], frontier_medians)}")
             self.timer = 0
@@ -223,11 +205,6 @@ class FrontierDetection:
             self.publish_end_goal((self.initial_position[0], self.initial_position[1]))
             self.timer = 0
             print("Returning to starting location!")
-            #self.publish_end_goal((-3, 1), msg)
-        #print(self.robot_x, self.robot_y, self.robot_orientation)
-        #closest_frontier = self.pick_closest_frontier(robot_grid[0], robot_grid[1], frontier_medians)
-        
-
 
 if __name__ == "__main__":
     FrontierDetection()

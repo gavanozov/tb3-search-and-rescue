@@ -11,6 +11,7 @@ class FrontierNavigation:
 
     def __init__(self):
         rospy.init_node('frontier_navigation')
+        self.previous_frontier = None
         self.pose_publisher = rospy.Publisher('/initialpose', PoseWithCovarianceStamped, queue_size=10)
         self.pose_subscriber = rospy.Subscriber('/odom', Odometry, self.get_pose)
         self.closest_frontier_subscriber = rospy.Subscriber('/closest_frontier', Point, self.navigation_callback)
@@ -61,10 +62,12 @@ class FrontierNavigation:
         return self.move_base_client.get_state() == actionlib.GoalStatus.SUCCEEDED
     
     def navigation_callback(self, msg):
-        
+
         self.set_robot_pose(self.robot_x, self.robot_y, self.robot_orientation)
 
-        self.send_goal(msg)
+        if self.previous_frontier != msg:       
+            self.send_goal(msg)
+            self.previous_frontier = msg
 
 if __name__ == "__main__":
     FrontierNavigation()

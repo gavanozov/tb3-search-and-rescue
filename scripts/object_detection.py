@@ -13,6 +13,7 @@ from sound_play.libsoundplay import SoundClient
 
 SIMULATION_TOPIC = '/camera/rgb/image_raw' # Camera topic for simulatuion
 REAL_TOPIC = '/camera/image' # Camera topic for real robot
+SATURATION = 80 # 80 for simulation and 120 for real environment
 
 class ObjectDetection:
 
@@ -20,12 +21,6 @@ class ObjectDetection:
         rospy.init_node('object_detection')
         # Get input from user for number of objects to look for
         self.object_number_target = int(input("How many objects is the robot looking for?\n"))
-        # Initialize required ROS publishers and subscribers
-        self.camera_subscriber = rospy.Subscriber(REAL_TOPIC, Image, self.image_callback)
-        self.pose_subscriber = rospy.Subscriber('/odom', Odometry, self.get_pose)
-        self.object_publisher = rospy.Publisher('/visualization_marker', Marker, queue_size=10)
-        self.bridge = CvBridge() # Bridge ROS with OpenCV
-        self.sound_client = SoundClient() # ROS Sound Cliet for signaling goal completion
         self.focal_length = 0.304 # Focal length of Turtlebot3 Raspberry Pi camera
         self.pixel_size = 0.000575
         self.camera_fov = math.radians(62.2) # Default TurtleBot3 Camera FOV (Field of View)
@@ -33,6 +28,14 @@ class ObjectDetection:
         self.object_locations = [] # Coordinates of found objects
         self.object_timings = {}  # Dictionary to store timing information
         self.detection_threshold = 0.1  # Time in seconds an object must be visible to be confirmed
+        self.bridge = CvBridge() # Bridge ROS with OpenCV
+        self.sound_client = SoundClient() # ROS Sound Cliet for signaling goal completion
+        # Initialize required ROS publishers and subscribers
+        self.camera_subscriber = rospy.Subscriber(SIMULATION_TOPIC, Image, self.image_callback)
+        self.pose_subscriber = rospy.Subscriber('/odom', Odometry, self.get_pose)
+        self.object_publisher = rospy.Publisher('/visualization_marker', Marker, queue_size=10)
+        
+        
 
     def get_pose(self, msg):
         # Get robot position on the map as well as current orientation by subscribing to the odometry topic (/odom)
@@ -110,11 +113,11 @@ class ObjectDetection:
             hsv = cv2.cvtColor(cv_image, cv2.COLOR_BGR2HSV)
 
             # Define lower and upper bounds for the first range of red
-            lower_red1 = np.array([0, 10, 20])
-            upper_red1 = np.array([8, 255, 255])
+            lower_red1 = np.array([0, SATURATION, 30])
+            upper_red1 = np.array([5, 255, 255])
 
             # Define lower and upper bounds for the second range of red
-            lower_red2 = np.array([175, 10, 20])
+            lower_red2 = np.array([170, SATURATION, 30])
             upper_red2 = np.array([180, 255, 255])
 
             # Create masks for each range
@@ -128,7 +131,7 @@ class ObjectDetection:
             contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
             # Filter contours based on shape and size
-            min_contour_area = 100
+            min_contour_area = 80
             min_aspect_ratio = 0.3
             max_aspect_ratio = 0.7
 

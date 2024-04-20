@@ -2,7 +2,7 @@ DWAPlannerROS:
 
 # Robot Configuration Parameters
   max_vel_x: 0.26
-  min_vel_x: -0.06
+  min_vel_x: -0.1
 
   max_vel_y: 0.0
   min_vel_y: 0.0
@@ -10,10 +10,10 @@ DWAPlannerROS:
 # The velocity when robot is moving in a straight line
   max_vel_trans:  0.26
 
-  max_vel_theta: 1.82
-  min_vel_theta: -1.82
-  max_in_place_vel_theta: 1.82
-  min_in_place_vel_theta: -1.82
+  max_vel_theta: 1.62
+  min_vel_theta: -1.62
+  max_in_place_vel_theta: 1.62
+  min_in_place_vel_theta: -1.62
 
   acc_lim_x: 1.0
   acc_lim_y: 0.0

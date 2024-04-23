@@ -207,6 +207,8 @@ class FrontierDetection:
             print("Returning to starting location!")
 
 if __name__ == "__main__":
-    FrontierDetection()
-    while not rospy.is_shutdown():
+    try:
+        FrontierDetection()
         rospy.spin()
+    except rospy.ROSInterruptException:
+        pass

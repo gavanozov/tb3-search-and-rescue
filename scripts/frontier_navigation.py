@@ -70,5 +70,8 @@ class FrontierNavigation:
             self.previous_frontier = msg
 
 if __name__ == "__main__":
-    FrontierNavigation()
-    rospy.spin()
+    try:
+        FrontierNavigation()
+        rospy.spin()
+    except rospy.ROSInterruptException:
+        pass

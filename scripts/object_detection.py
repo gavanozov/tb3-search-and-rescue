@@ -1,23 +1,32 @@
 #!/usr/bin/env python
 import rospy
+import argparse
 import cv2
 import numpy as np
 import math
 import time
 from cv_bridge import CvBridge
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import Image, CompressedImage
 from nav_msgs.msg import Odometry
 from visualization_msgs.msg import Marker
 from tf.transformations import euler_from_quaternion
 from sound_play.libsoundplay import SoundClient
 
-SIMULATION_TOPIC = '/camera/rgb/image_raw' # Camera topic for simulatuion
-REAL_TOPIC = '/camera/image' # Camera topic for real robot
-SATURATION = 80 # 80 for simulation and 120 for real environment
+VALID_TOPICS = {
+    "real": '/camera/image/compressed',
+    "simulation": '/camera/rgb/image_raw/compressed'
+}
+
+def parse_arguments():
+    parser = argparse.ArgumentParser(description="Run the object detection node.")
+    parser.add_argument("camera_topic", choices=VALID_TOPICS.keys(), help="Specify 'real' for real robot or 'simulation' for simulation.")
+    args = parser.parse_args()
+    return VALID_TOPICS[args.camera_topic]
+
 
 class ObjectDetection:
 
-    def __init__(self):
+    def __init__(self, camera_topic):
         rospy.init_node('object_detection')
         # Get input from user for number of objects to look for
         self.object_number_target = int(input("How many objects is the robot looking for?\n"))
@@ -28,10 +37,11 @@ class ObjectDetection:
         self.object_locations = [] # Coordinates of found objects
         self.object_timings = {}  # Dictionary to store timing information
         self.detection_threshold = 0.1  # Time in seconds an object must be visible to be confirmed
+        self.saturation = 120 if camera_topic == 'real' else 70 # Pick saturation for image processing
         self.bridge = CvBridge() # Bridge ROS with OpenCV
         self.sound_client = SoundClient() # ROS Sound Cliet for signaling goal completion
         # Initialize required ROS publishers and subscribers
-        self.camera_subscriber = rospy.Subscriber(SIMULATION_TOPIC, Image, self.image_callback)
+        self.camera_subscriber = rospy.Subscriber(camera_topic, CompressedImage, self.image_callback)
         self.pose_subscriber = rospy.Subscriber('/odom', Odometry, self.get_pose)
         self.object_publisher = rospy.Publisher('/visualization_marker', Marker, queue_size=10)
         
@@ -108,16 +118,19 @@ class ObjectDetection:
 
     def image_callback(self, msg):
             
+            # Decode the compressed image
+            np_arr = np.frombuffer(msg.data, np.uint8)
+            cv_image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
             # Use CVBridge to convert image from ROS topic to a processable format 
-            cv_image = self.bridge.imgmsg_to_cv2(msg, "bgr8")
+            #cv_image = self.bridge.imgmsg_to_cv2(msg, "bgr8")
             hsv = cv2.cvtColor(cv_image, cv2.COLOR_BGR2HSV)
 
             # Define lower and upper bounds for the first range of red
-            lower_red1 = np.array([0, SATURATION, 30])
+            lower_red1 = np.array([0, self.saturation, 30])
             upper_red1 = np.array([5, 255, 255])
 
             # Define lower and upper bounds for the second range of red
-            lower_red2 = np.array([170, SATURATION, 30])
+            lower_red2 = np.array([170, self.saturation, 30])
             upper_red2 = np.array([180, 255, 255])
 
             # Create masks for each range
@@ -195,5 +208,9 @@ class ObjectDetection:
             cv2.waitKey(1)
 
 if __name__ == "__main__":
-    ObjectDetection()
-    rospy.spin()
+    try:
+        camera_topic = parse_arguments()
+        ObjectDetection(camera_topic)
+        rospy.spin()
+    except rospy.ROSInterruptException:
+        pass

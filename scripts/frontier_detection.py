@@ -23,8 +23,8 @@ class FrontierDetection:
         self.timer = 0
         self.initial_position = None
         # Initialize required ROS publishers and subscribers
-        self.frontiers_publisher = rospy.Publisher('/frontiers', GridCells, queue_size=10)
-        self.closest_frontier_publisher = rospy.Publisher('/closest_frontier', Point, queue_size=10)
+        self.frontiers_publisher = rospy.Publisher('/frontiers', GridCells, queue_size=0)
+        self.closest_frontier_publisher = rospy.Publisher('/closest_frontier', Point, queue_size=0)
         self.pose_subscriber = rospy.Subscriber('/odom', Odometry, self.get_pose)
         self.map_subscriber = rospy.Subscriber('/map', OccupancyGrid, self.occupancy_grid_callback)
         
@@ -152,15 +152,15 @@ class FrontierDetection:
         occupancy_grid = np.array(msg.data).reshape((height, width))
 
         # Convert the robot's coordinates on the map into a coordinate on the occupancy grid
-        robot_grid = (
+        robot_pose = (
             round(abs((self.robot_x - msg.info.origin.position.x) / resolution)),
             round(abs((self.robot_y - msg.info.origin.position.y) / resolution))
         )
 
         # Here starts the frontier detection algorithm
         queue_m = q.Queue()
-        queue_m.put(robot_grid)
-        mol.add(robot_grid)
+        queue_m.put(robot_pose)
+        mol.add(robot_pose)
 
         while not queue_m.empty():
             current_cell = queue_m.get()
@@ -182,7 +182,7 @@ class FrontierDetection:
                                 queue_f.put(adj_f)
                                 fol.add(adj_f)
                     fcl.add(current_frontier)
-                if len(new_frontier) > 22: 
+                if len(new_frontier) > 24: 
                     frontiers.append(new_frontier)
                     new_median = self.calculate_median(new_frontier) 
                     if new_median not in frontier_medians:
@@ -196,8 +196,8 @@ class FrontierDetection:
             mcl.add(current_cell)
         self.visualize_frontiers(frontiers, msg)
         if frontier_medians:
-            self.publish_closest_frontier(self.pick_closest_frontier(robot_grid[1], robot_grid[0], frontier_medians), msg)
-            print(f"Closest frontier is at coordinates {self.pick_closest_frontier(robot_grid[1], robot_grid[0], frontier_medians)}")
+            self.publish_closest_frontier(self.pick_closest_frontier(robot_pose[1], robot_pose[0], frontier_medians), msg)
+            print(f"Closest frontier is at coordinates {self.pick_closest_frontier(robot_pose[1], robot_pose[0], frontier_medians)}")
             self.timer = 0
         else:
             self.timer += 1

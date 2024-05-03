@@ -6,7 +6,7 @@ import numpy as np
 import math
 import time
 from cv_bridge import CvBridge
-from sensor_msgs.msg import Image, CompressedImage
+from sensor_msgs.msg import CompressedImage
 from nav_msgs.msg import Odometry
 from visualization_msgs.msg import Marker
 from tf.transformations import euler_from_quaternion
